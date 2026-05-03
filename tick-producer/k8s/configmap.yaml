@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tick-producer-config
+  namespace: trading
+data:
+  # ── Gateway (mt5-bridge-api) ────────────────────────────────────
+  # mt5-gateway es un ExternalName Service → host.minikube.internal:8000
+  # (el Python Gateway corre en el host Windows en localhost:8000)
+  GATEWAY_BASE_URL: "http://mt5-gateway:8000"
+
+  # ── Kafka ───────────────────────────────────────────────────────
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+
+  # ── Tick Scheduler ──────────────────────────────────────────────
+  TICK_TOPIC: "topic_ticks"
+  TICK_CRON: "0 0 * * * *"
+  TICK_SYMBOLS: "EURUSDm,GBPUSDm,USDJPYm,AUDUSDm,USDCHFm,USDCADm"
+
+  # ── Logging ─────────────────────────────────────────────────────
+  LOGGING_LEVEL_COM_TRADING_TICKPRODUCER: "DEBUG"
+  LOGGING_LEVEL_ORG_APACHE_KAFKA: "WARN"

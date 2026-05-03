@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug mt5_bridge.main",
+      "type": "python",
+      "request": "launch",
+      "module": "mt5_bridge.main",
+      "cwd": "${workspaceFolder}/mt5-bridge-api",
+      "envFile": "${workspaceFolder}/mt5-bridge-api/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/mt5-bridge-api/src"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

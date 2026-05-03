@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tick-producer
+  namespace: trading
+  labels:
+    app: tick-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tick-producer
+  template:
+    metadata:
+      labels:
+        app: tick-producer
+    spec:
+      containers:
+        - name: tick-producer
+          image: tick-producer:latest
+          imagePullPolicy: Never
+          ports:
+            - name: actuator
+              containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: tick-producer-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always

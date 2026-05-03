@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: trading
+  labels:
+    app: kafka
+spec:
+  serviceName: kafka
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      # Desactiva la inyección automática de variables de entorno por Service.
+      # Sin esto, K8s crea KAFKA_PORT, KAFKA_SERVICE_HOST, etc. que la imagen
+      # Confluent interpreta como propiedades del broker y causan crash.
+      enableServiceLinks: false
+
+      # ── Init: formatear storage KRaft en el primer arranque ────
+      initContainers:
+        - name: kafka-init
+          image: confluentinc/cp-kafka:7.7.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /var/lib/kafka/data/meta.properties ]; then
+                echo "Formatting KRaft storage at /var/lib/kafka/data"
+                # Crear config temporal con log.dirs apuntando al PVC
+                cp /etc/kafka/kraft/server.properties /tmp/kraft-init.properties
+                sed -i 's|log.dirs=.*|log.dirs=/var/lib/kafka/data|' /tmp/kraft-init.properties
+                kafka-storage format -t "$CLUSTER_ID" -c /tmp/kraft-init.properties
+              else
+                echo "Storage already formatted, skipping."
+              fi
+          envFrom:
+            - configMapRef:
+                name: kafka-broker-config
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /var/lib/kafka/data
+
+      containers:
+        # ── Kafka Broker (KRaft) ─────────────────────────────────
+        - name: kafka
+          image: confluentinc/cp-kafka:7.7.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: broker
+              containerPort: 9092
+            - name: controller
+              containerPort: 9093
+          envFrom:
+            - configMapRef:
+                name: kafka-broker-config
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /var/lib/kafka/data
+          resources:
+            requests:
+              memory: "768Mi"
+              cpu: "500m"
+            limits:
+              memory: "1536Mi"
+              cpu: "1000m"
+          # Liveness usa tcpSocket: no levanta un cliente Kafka completo,
+          # por lo que no se ve afectado por pausas de GC y no mata el broker.
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          # Readiness mantiene el comando completo pero con margen suficiente.
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+  volumeClaimTemplates:
+    - metadata:
+        name: kafka-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 2Gi

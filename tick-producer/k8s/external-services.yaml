@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mt5-gateway
+  namespace: trading
+  labels:
+    app: mt5-gateway
+  annotations:
+    description: "ExternalName Service que apunta al Python Gateway corriendo en el host (localhost:8000 del host Windows)"
+spec:
+  # ExternalName crea un CNAME en el DNS del cluster:
+  #   mt5-gateway.trading.svc.cluster.local → host.minikube.internal
+  # Los pods usan http://mt5-gateway:8000 sin saber que es el host.
+  type: ExternalName
+  externalName: host.minikube.internal

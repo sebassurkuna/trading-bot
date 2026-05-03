@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: trading
+data:
+  POSTGRES_DB: trading_db
+  POSTGRES_USER: trading_user
+  PGDATA: /var/lib/postgresql/data/pgdata

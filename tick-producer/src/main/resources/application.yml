@@ -1,0 +1,60 @@
+# ══════════════════════════════════════════════════════════════════
+#  Tick Producer — Spring Boot Configuration
+# ══════════════════════════════════════════════════════════════════
+
+spring:
+  application:
+    name: tick-producer
+
+  # ── Kafka ────────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        spring.json.add.type.headers: false
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+        linger.ms: 5
+
+  # ── Jackson ──────────────────────────────────────────────────────
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+# ── Gateway ────────────────────────────────────────────────────────
+gateway:
+  base-url: ${GATEWAY_BASE_URL:http://localhost:8000}
+
+# ── Tick Scheduler ─────────────────────────────────────────────────
+tick:
+  topic: ${TICK_TOPIC:topic_ticks}
+  cron: ${TICK_CRON:1 0 * * * *}
+  symbols: ${TICK_SYMBOLS:EURUSDm,GBPUSDm,USDJPYm,AUDUSDm,USDCHFm,USDCADm}
+
+# ── Server / Actuator ─────────────────────────────────────────────
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# ── Logging ───────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    com.trading.tickproducer: DEBUG
+    org.apache.kafka: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

@@ -1,0 +1,579 @@
+{
+  "info": {
+    "_postman_id": "mt5-bridge-api-collection",
+    "name": "MT5 Bridge API",
+    "description": "Colección completa para probar el servicio MT5 Bridge API.\n\nVariables de entorno requeridas:\n- base_url: http://localhost:8000\n\nEl order_id se setea automáticamente al ejecutar 'Open New Order'.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "URL base del servicio MT5 Bridge"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string",
+      "description": "Seteado automáticamente al abrir una orden"
+    },
+    {
+      "key": "symbol",
+      "value": "EURUSDm",
+      "type": "string",
+      "description": "Símbolo MT5 con sufijo Exness"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Ops",
+      "description": "Endpoints de operaciones: health check y métricas Prometheus.",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Liveness probe — retorna {\"status\": \"ok\"} si el servicio está corriendo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Service is ok', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('ok');",
+                  "});",
+                  "pm.test('Response time < 500ms', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/metrics",
+              "host": ["{{base_url}}"],
+              "path": ["metrics"]
+            },
+            "description": "Scrape endpoint de Prometheus. Retorna métricas en formato text/plain."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is text/plain', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/plain');",
+                  "});",
+                  "pm.test('Contains mt5_gateway metrics', () => {",
+                  "    pm.expect(pm.response.text()).to.include('mt5_gateway');",
+                  "});",
+                  "pm.test('Contains duplicate_order_attempts metric', () => {",
+                  "    pm.expect(pm.response.text()).to.include('duplicate_order_attempts');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "description": "Información de la cuenta MT5 activa.",
+      "item": [
+        {
+          "name": "Get Account Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/account",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "account"]
+            },
+            "description": "Retorna información en vivo de la cuenta MT5 conectada."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1000ms', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "pm.test('Has required fields', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('account_id');",
+                  "    pm.expect(json).to.have.property('balance');",
+                  "    pm.expect(json).to.have.property('equity');",
+                  "    pm.expect(json).to.have.property('currency');",
+                  "    pm.expect(json).to.have.property('is_trade_allowed');",
+                  "    pm.expect(json).to.have.property('leverage');",
+                  "    pm.expect(json).to.have.property('server');",
+                  "});",
+                  "pm.test('Balance is a positive number', () => {",
+                  "    pm.expect(pm.response.json().balance).to.be.a('number').and.above(0);",
+                  "});",
+                  "pm.test('Leverage is a positive integer', () => {",
+                  "    pm.expect(pm.response.json().leverage).to.be.a('number').and.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Candles",
+      "description": "Datos OHLCV históricos para backtesting.",
+      "item": [
+        {
+          "name": "Get Candles 1h",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tick/{{symbol}}?from=2026-01-01T00:00:00Z&to=2026-02-25T00:00:00Z&period=1h",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tick", "{{symbol}}"],
+              "query": [
+                { "key": "from", "value": "2026-01-01T00:00:00Z" },
+                { "key": "to", "value": "2026-02-25T00:00:00Z" },
+                { "key": "period", "value": "1h" }
+              ]
+            },
+            "description": "Retorna candles de 1 hora para EURUSDm en el rango especificado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 5000ms', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "pm.test('Has candles array', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('candles');",
+                  "    pm.expect(json.candles).to.be.an('array');",
+                  "});",
+                  "pm.test('count matches candles length', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.count).to.equal(json.candles.length);",
+                  "});",
+                  "pm.test('Period matches request', () => {",
+                  "    pm.expect(pm.response.json().period).to.equal('1h');",
+                  "});",
+                  "pm.test('Symbol matches request', () => {",
+                  "    pm.expect(pm.response.json().symbol).to.equal(pm.variables.get('symbol'));",
+                  "});",
+                  "pm.test('Each candle has OHLCV fields', () => {",
+                  "    const candles = pm.response.json().candles;",
+                  "    if (candles.length > 0) {",
+                  "        const c = candles[0];",
+                  "        pm.expect(c).to.have.all.keys('time','open','high','low','close','tick_volume','spread');",
+                  "        pm.expect(c.high).to.be.at.least(c.low);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Candles 1d",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tick/{{symbol}}?from=2026-01-01T00:00:00Z&to=2026-02-25T00:00:00Z&period=1d",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tick", "{{symbol}}"],
+              "query": [
+                { "key": "from", "value": "2026-01-01T00:00:00Z" },
+                { "key": "to", "value": "2026-02-25T00:00:00Z" },
+                { "key": "period", "value": "1d" }
+              ]
+            },
+            "description": "Candles diarios — menos datos, más rápido."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Period is 1d', () => {",
+                  "    pm.expect(pm.response.json().period).to.equal('1d');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Candles — Invalid Period (422)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tick/{{symbol}}?from=2026-01-01T00:00:00Z&to=2026-02-25T00:00:00Z&period=3d",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tick", "{{symbol}}"],
+              "query": [
+                { "key": "from", "value": "2026-01-01T00:00:00Z" },
+                { "key": "to", "value": "2026-02-25T00:00:00Z" },
+                { "key": "period", "value": "3d" }
+              ]
+            },
+            "description": "Prueba de error — periodo inválido debe retornar 422."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422 for invalid period', () => pm.response.to.have.status(422));",
+                  "pm.test('Error detail mentions period', () => {",
+                  "    pm.expect(pm.response.json().detail).to.include('period').or.include('Unknown');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "description": "Gestión de órdenes: abrir, duplicar, modificar y cerrar.",
+      "item": [
+        {
+          "name": "1 — Open New Order (MARKET BUY)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{$guid}}\",\n  \"symbol\": \"{{symbol}}\",\n  \"action\": \"BUY\",\n  \"order_type\": \"MARKET\",\n  \"volume\": 0.01,\n  \"sl\": 1.09500,\n  \"tp\": 1.11500,\n  \"comment\": \"postman-test\",\n  \"magic\": 99999,\n  \"deviation\": 20\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "order"]
+            },
+            "description": "Abre una orden MARKET BUY nueva. Guarda el order_id para los siguientes requests."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Genera un UUID v4 fresco y lo guarda como variable de colección",
+                  "const uuid = require('uuid');",
+                  "const newOrderId = pm.variables.replaceIn('{{$guid}}');",
+                  "pm.collectionVariables.set('orderId', newOrderId);",
+                  "console.log('New orderId:', newOrderId);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 (new order)', () => pm.response.to.have.status(201));",
+                  "pm.test('Response time < 3000ms', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});",
+                  "pm.test('is_duplicate is false', () => {",
+                  "    pm.expect(pm.response.json().is_duplicate).to.be.false;",
+                  "});",
+                  "pm.test('status is FILLED', () => {",
+                  "    pm.expect(pm.response.json().status).to.equal('FILLED');",
+                  "});",
+                  "pm.test('Has broker_ticket', () => {",
+                  "    pm.expect(pm.response.json().broker_ticket).to.be.a('number');",
+                  "});",
+                  "pm.test('Has fill_price', () => {",
+                  "    pm.expect(pm.response.json().fill_price).to.be.a('number').and.above(0);",
+                  "});",
+                  "// Guarda el orderId para los siguientes requests",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('orderId', json.order_id);",
+                  "console.log('Saved orderId:', json.order_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 — Open Same Order Again (Duplicate → 200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"symbol\": \"{{symbol}}\",\n  \"action\": \"BUY\",\n  \"order_type\": \"MARKET\",\n  \"volume\": 0.01,\n  \"sl\": 1.09500,\n  \"tp\": 1.11500,\n  \"comment\": \"postman-test\",\n  \"magic\": 99999,\n  \"deviation\": 20\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "order"]
+            },
+            "description": "Reenvía el mismo order_id. Debe retornar HTTP 200 con is_duplicate=true sin re-ejecutar en MT5."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 (duplicate)', () => pm.response.to.have.status(200));",
+                  "pm.test('is_duplicate is true', () => {",
+                  "    pm.expect(pm.response.json().is_duplicate).to.be.true;",
+                  "});",
+                  "pm.test('order_id matches', () => {",
+                  "    pm.expect(pm.response.json().order_id).to.equal(pm.collectionVariables.get('orderId'));",
+                  "});",
+                  "pm.test('Status is FILLED (same as original)', () => {",
+                  "    pm.expect(pm.response.json().status).to.equal('FILLED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 — Modify Order SL/TP",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sl\": 1.10000,\n  \"tp\": 1.12000\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/order/{{orderId}}/modify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "order", "{{orderId}}", "modify"]
+            },
+            "description": "Modifica el SL y TP de la posición abierta."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is MODIFIED', () => {",
+                  "    pm.expect(pm.response.json().status).to.equal('MODIFIED');",
+                  "});",
+                  "pm.test('SL was updated', () => {",
+                  "    pm.expect(pm.response.json().sl).to.be.closeTo(1.10000, 0.00001);",
+                  "});",
+                  "pm.test('TP was updated', () => {",
+                  "    pm.expect(pm.response.json().tp).to.be.closeTo(1.12000, 0.00001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 — Modify Only SL (TP omitted)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sl\": 1.09800\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/order/{{orderId}}/modify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "order", "{{orderId}}", "modify"]
+            },
+            "description": "Modifica solo el SL. El TP debe mantenerse en su valor actual."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('SL was updated', () => {",
+                  "    pm.expect(pm.response.json().sl).to.be.closeTo(1.09800, 0.00001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 — Modify — Empty Body (422)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/order/{{orderId}}/modify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "order", "{{orderId}}", "modify"]
+            },
+            "description": "Enviar cuerpo vacío debe retornar 422 — al menos sl o tp son requeridos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422 for empty body', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 — Close Order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/order/{{orderId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "order", "{{orderId}}"]
+            },
+            "description": "Cierra la posición MT5 asociada al order_id del cliente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is CLOSED', () => {",
+                  "    pm.expect(pm.response.json().status).to.equal('CLOSED');",
+                  "});",
+                  "pm.test('Has close_price', () => {",
+                  "    pm.expect(pm.response.json().close_price).to.be.a('number');",
+                  "});",
+                  "pm.test('Has profit field', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('profit');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 — Close Non-Existent Order (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/order/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "order", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Intentar cerrar un order_id inexistente debe retornar 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 for unknown order', () => pm.response.to.have.status(404));",
+                  "pm.test('Error detail mentions order', () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

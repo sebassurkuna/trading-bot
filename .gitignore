@@ -1,0 +1,136 @@
+# ============================================================
+# ARCHIVOS SENSIBLES / SECRETS
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets/
+*secret*
+*credentials*
+*password*
+*token*
+
+# ============================================================
+# PYTHON
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# Distribución / Empaquetado
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+MANIFEST
+*.whl
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+.env/
+.Python
+
+# pytest / testing
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+nosetests.xml
+*.cover
+
+# mypy / linting
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# pipenv / poetry
+Pipfile.lock
+poetry.lock
+
+# ============================================================
+# JAVA / GRADLE / MAVEN
+# ============================================================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+build/
+bin/
+out/
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# IDE — IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE — Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+
+# IDE — VS Code (Java)
+.vscode/settings.json
+
+# Generated sources
+bin/generated-sources/
+bin/generated-test-sources/
+
+# ============================================================
+# KUBERNETES / INFRA
+# ============================================================
+*kubeconfig*
+*-secret.yaml
+*-secrets.yaml
+
+# ============================================================
+# SISTEMA OPERATIVO
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ============================================================
+# LOGS
+# ============================================================
+*.log
+logs/
+*.out
